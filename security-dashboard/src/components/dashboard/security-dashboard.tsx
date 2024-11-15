@@ -1,108 +1,235 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Cpu, Activity, AlertTriangle, TrendingUp, Radio, Target, CrosshairIcon, ShieldAlert, Terminal, Network, ChevronRight, Wifi, Box } from 'lucide-react';
+import { Shield, Box, Terminal, Network, ChevronRight, Wifi, Radio, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from "@/components/ui/progress";
-import CodeViewer from './CodeViewer';
 
 // Types
-interface SystemMetrics {
-  cpu_percent: number;
-  memory_percent: number;
-  disk_usage: number;
-  network_bytes_sent: number;
-  network_bytes_recv: number;
-  timestamp?: string;
-  memory_used?: number;
-  memory_total?: number;
-  disk_used?: number;
-  disk_total?: number;
-}
-
 interface BattleLog {
+  id: string;
   message: string;
   timestamp: string;
   severity: 'info' | 'warning' | 'alert' | 'critical';
+  source_ip: string;
 }
 
-interface DefenseAction {
-  id: string;
-  timestamp: string;
-  type: 'firewall' | 'ids' | 'authentication' | 'encryption';
-  code: string;
-  status: 'active' | 'pending' | 'completed';
-  description: string;
-}
+// System Status Component
+const SystemStatus = () => {
+  const [metrics, setMetrics] = useState({
+    cpu_percent: 45,
+    memory_percent: 62,
+    disk_usage: 78,
+    network_bytes_sent: 1024 * 1024 * 2, // 2MB
+    network_bytes_recv: 1024 * 1024 * 5, // 5MB
+    memory_used: 1024 * 1024 * 1024 * 8, // 8GB
+    memory_total: 1024 * 1024 * 1024 * 16, // 16GB
+    disk_used: 1024 * 1024 * 1024 * 1024 * 0.8, // 0.8TB
+    disk_total: 1024 * 1024 * 1024 * 1024, // 1TB
+  });
 
-// Dummy data
-const dummyMetrics: SystemMetrics = {
-  cpu_percent: 45,
-  memory_percent: 60,
-  disk_usage: 75,
-  network_bytes_sent: 1024 * 1024 * 50,
-  network_bytes_recv: 1024 * 1024 * 30,
-  memory_used: 8 * 1024 * 1024 * 1024,
-  memory_total: 16 * 1024 * 1024 * 1024,
-  disk_used: 256 * 1024 * 1024 * 1024,
-  disk_total: 512 * 1024 * 1024 * 1024
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMetrics(prev => ({
+        cpu_percent: Math.min(100, Math.max(0, prev.cpu_percent + (Math.random() * 20 - 10))),
+        memory_percent: Math.min(100, Math.max(0, prev.memory_percent + (Math.random() * 10 - 5))),
+        disk_usage: Math.min(100, Math.max(0, prev.disk_usage + (Math.random() * 2 - 1))),
+        network_bytes_sent: Math.max(0, prev.network_bytes_sent + (Math.random() * 1024 * 1024 * 2)),
+        network_bytes_recv: Math.max(0, prev.network_bytes_recv + (Math.random() * 1024 * 1024 * 3)),
+        memory_used: prev.memory_used + (Math.random() * 1024 * 1024 * 100),
+        memory_total: prev.memory_total,
+        disk_used: prev.disk_used + (Math.random() * 1024 * 1024 * 50),
+        disk_total: prev.disk_total,
+      }));
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  return (
+    <Card className="bg-zinc-900 border-zinc-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
+          <Box className="h-4 w-4 text-cyan-500" />
+          SYSTEM STATUS
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-4">
+          <div className="relative">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-mono text-zinc-300">CPU USAGE</span>
+              <span className="text-xs font-mono text-cyan-500">{metrics.cpu_percent.toFixed(1)}%</span>
+            </div>
+            <Progress value={metrics.cpu_percent} className="h-1" />
+          </div>
+
+          <div className="relative">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-mono text-zinc-300">MEMORY</span>
+              <span className="text-xs font-mono text-cyan-500">{metrics.memory_percent.toFixed(1)}%</span>
+            </div>
+            <Progress value={metrics.memory_percent} className="h-1" />
+            <div className="text-[10px] font-mono text-zinc-500 mt-1">
+              {formatBytes(metrics.memory_used)} / {formatBytes(metrics.memory_total)}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-mono text-zinc-300">DISK USAGE</span>
+              <span className="text-xs font-mono text-cyan-500">{metrics.disk_usage.toFixed(1)}%</span>
+            </div>
+            <Progress value={metrics.disk_usage} className="h-1" />
+            <div className="text-[10px] font-mono text-zinc-500 mt-1">
+              {formatBytes(metrics.disk_used)} / {formatBytes(metrics.disk_total)}
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-mono text-zinc-300">NETWORK I/O</span>
+              <span className="text-xs font-mono text-cyan-500">
+                ↑{formatBytes(metrics.network_bytes_sent)}/s
+              </span>
+            </div>
+            <Progress value={75} className="h-1" />
+            <div className="text-[10px] font-mono text-zinc-500 mt-1">
+              ↓{formatBytes(metrics.network_bytes_recv)}/s
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 };
 
-const dummyLogs: BattleLog[] = [
-  {
-    message: "System startup initiated",
-    timestamp: new Date().toISOString(),
-    severity: "info"
-  },
-  {
-    message: "Suspicious login attempt detected",
-    timestamp: new Date().toISOString(),
-    severity: "warning"
-  },
-  {
-    message: "Firewall rules updated",
-    timestamp: new Date().toISOString(),
-    severity: "info"
-  }
-];
+// Code Viewer Component
+const CodeViewer = () => {
+  const [currentCode, setCurrentCode] = useState<string>('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [allCode, setAllCode] = useState<string[]>([]);
+  const typeTimeoutRef = useRef<NodeJS.Timeout>();
 
-const dummyDefenseActions: DefenseAction[] = [
-  {
-    id: '1',
-    timestamp: new Date().toISOString(),
-    type: 'firewall',
-    status: 'active',
-    description: 'Updating firewall rules to block suspicious IP range',
-    code: `iptables -A INPUT -s 192.168.1.0/24 -j DROP
-iptables -A OUTPUT -d 192.168.1.0/24 -j DROP
-systemctl restart firewalld`
-  },
-  {
-    id: '2',
-    timestamp: new Date().toISOString(),
-    type: 'ids',
-    status: 'completed',
-    description: 'Updated Snort rules for SQL injection detection',
-    code: `alert tcp $EXTERNAL_NET any -> $HTTP_SERVERS $HTTP_PORTS (
-  msg:"SQL Injection Attempt";
-  flow:to_server,established;
-  content:"UNION SELECT"; nocase;
-  sid:1000001; rev:1;
-)`
-  }
-];
+  const SAMPLE_CODE = `### Shell Commands to Patch Ubuntu 14.04 System
 
+\`\`\`bash
+sudo apt-get update
+sudo apt-get upgrade -y
+sudo apt-get dist-upgrade -y
+sudo apt-get install --only-upgrade openssh-server -y
+sudo ufw enable
+sudo ufw default deny incoming
+sudo ufw allow ssh
+sudo passwd --lock root
+sudo usermod -L root
+sudo apt-get autoremove -y
+sudo apt-get autoclean -y
+\`\`\``;
+
+  useEffect(() => {
+    animateNewCode(SAMPLE_CODE);
+    return () => {
+      if (typeTimeoutRef.current) {
+        clearTimeout(typeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const animateNewCode = (code: string) => {
+    setIsTyping(true);
+    let index = 0;
+    setCurrentCode('');
+    
+    const typeCode = () => {
+      if (index < code.length) {
+        setCurrentCode(code.slice(0, index + 1));
+        index++;
+        typeTimeoutRef.current = setTimeout(typeCode, Math.random() * 30 + 20);
+      } else {
+        setIsTyping(false);
+        setAllCode([code]);
+      }
+    };
+    
+    typeCode();
+  };
+
+  return (
+    <Card className="bg-zinc-900 border-zinc-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-mono text-zinc-400 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-cyan-500" />
+            LIVE DEFENSE GENERATION
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] px-2 py-1 rounded ${isTyping ? 'bg-cyan-500/10 text-cyan-500 animate-pulse' : 'bg-zinc-800 text-zinc-400'}`}>
+              {isTyping ? 'GENERATING DEFENSE' : 'MONITORING'}
+            </span>
+          </div>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="bg-black/50 rounded-lg p-4 border border-zinc-800">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Terminal className="h-4 w-4 text-cyan-500" />
+                <span className="text-xs font-mono text-zinc-400">
+                  DEFENSE CODE
+                </span>
+              </div>
+            </div>
+            <pre className="bg-black rounded p-2 overflow-x-auto min-h-[200px] max-h-[600px] overflow-y-auto">
+              <code className="text-xs font-mono text-cyan-500 whitespace-pre-wrap">
+                {currentCode || allCode.join('\n\n') || '// Awaiting defense code...'}
+              </code>
+            </pre>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Main Command Center Component
 const CommandCenter = () => {
-  // State
-  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>(dummyMetrics);
-  const [battleLogs, setBattleLogs] = useState<BattleLog[]>(dummyLogs);
-  const [defenseActions, setDefenseActions] = useState<DefenseAction[]>(dummyDefenseActions);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>('disconnected');
-  const wsRef = useRef<WebSocket | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>('connected');
   const [currentTime, setCurrentTime] = useState<string>(new Date().toLocaleTimeString());
+  const [battleLogs, setBattleLogs] = useState<BattleLog[]>([
+    {
+      id: '1',
+      message: 'Port scan detected from suspicious IP',
+      timestamp: new Date().toISOString(),
+      severity: 'warning',
+      source_ip: '192.168.1.100'
+    },
+    {
+      id: '2',
+      message: 'Brute force SSH attempt blocked',
+      timestamp: new Date().toISOString(),
+      severity: 'alert',
+      source_ip: '10.0.0.50'
+    },
+    {
+      id: '3',
+      message: 'System firewall rules updated',
+      timestamp: new Date().toISOString(),
+      severity: 'info',
+      source_ip: 'system'
+    }
+  ]);
 
-  // Update time
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
@@ -111,84 +238,83 @@ const CommandCenter = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // WebSocket connection
   useEffect(() => {
-    const connectWebSocket = () => {
-      try {
-        const ws = new WebSocket('ws://localhost:8000/ws');
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          console.log('WebSocket Connected');
-          setConnectionStatus('connected');
-        };
-
-        ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          
-          switch (data.type) {
-            case 'system_metrics':
-              setSystemMetrics(data.data);
-              break;
-            case 'battle_logs':
-              setBattleLogs(data.data);
-              break;
-            case 'defense_actions':
-              setDefenseActions(data.data);
-              break;
-          }
-        };
-
-        ws.onclose = () => {
-          console.log('WebSocket Disconnected');
-          setConnectionStatus('disconnected');
-          setTimeout(connectWebSocket, 5000);
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket Error:', error);
-          setConnectionStatus('disconnected');
-          ws.close();
-        };
-      } catch (error) {
-        console.error('WebSocket Connection Error:', error);
-        setConnectionStatus('disconnected');
+    const possibleLogs = [
+      {
+        message: 'Unauthorized access attempt blocked',
+        severity: 'warning',
+        source_ip: '192.168.1.150'
+      },
+      {
+        message: 'Critical security patch applied',
+        severity: 'info',
+        source_ip: 'system'
+      },
+      {
+        message: 'DDoS attack detected and mitigated',
+        severity: 'alert',
+        source_ip: '10.0.0.25'
+      },
+      {
+        message: 'System breach detected - implementing countermeasures',
+        severity: 'critical',
+        source_ip: '172.16.0.100'
+      },
+      {
+        message: 'Malware signature updated',
+        severity: 'info',
+        source_ip: 'system'
+      },
+      {
+        message: 'Suspicious outbound connection blocked',
+        severity: 'warning',
+        source_ip: '192.168.1.75'
       }
-    };
+    ];
 
-    connectWebSocket();
+    const interval = setInterval(() => {
+      const randomLog = possibleLogs[Math.floor(Math.random() * possibleLogs.length)];
+      const newLog = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        ...randomLog
+      } as BattleLog;
 
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
+      setBattleLogs(prev => [newLog, ...prev].slice(0, 20));
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
-  // Fetch initial data
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const metricsResponse = await fetch('http://localhost:8000/system-metrics');
-        if (metricsResponse.ok) {
-          const metricsData = await metricsResponse.json();
-          setSystemMetrics(metricsData);
-        }
-      } catch (error) {
-        console.error('Error fetching initial data:', error);
-      }
-    };
+  const renderBattleLogs = () => {
+    if (!battleLogs || battleLogs.length === 0) {
+      return (
+        <div className="text-xs font-mono text-zinc-500 text-center py-4">
+          No logs available
+        </div>
+      );
+    }
 
-    fetchInitialData();
-  }, []);
-
-  // Format bytes
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    return battleLogs.map((log) => (
+      <div key={log.id} className="flex items-start gap-2 pb-2 border-b border-zinc-800">
+        <ChevronRight className={`h-4 w-4 ${
+          log.severity === 'critical' ? 'text-red-500' :
+          log.severity === 'alert' ? 'text-amber-500' :
+          log.severity === 'warning' ? 'text-yellow-500' :
+          'text-cyan-500'
+        }`} />
+        <div>
+          <div className="text-xs font-mono text-zinc-300">
+            {log.message}
+          </div>
+          <div className="text-[10px] font-mono text-zinc-500 flex gap-2">
+            <span>{new Date(log.timestamp).toLocaleString()}</span>
+            <span>|</span>
+            <span>IP: {log.source_ip}</span>
+          </div>
+        </div>
+      </div>
+    ));
   };
 
   return (
@@ -222,213 +348,134 @@ const CommandCenter = () => {
       </div>
 
       {/* Main Grid */}
+      {/* Main Grid */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left Column - System Status */}
+        <div className="col-span-3">
+          <SystemStatus />
+        </div>
+
+        {/* Center Column - Code Viewer */}
+        <div className="col-span-6">
+          <CodeViewer />
+        </div>
+
+        {/* Right Column - Network Status & Defense Status */}
         <div className="col-span-3 space-y-6">
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
-                <Box className="h-4 w-4 text-cyan-500" />
-                SYSTEM STATUS
+                <Network className="h-4 w-4 text-cyan-500" />
+                NETWORK STATUS
               </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="relative">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-mono text-zinc-300">CPU USAGE</span>
-                    <span className="text-xs font-mono text-cyan-500">{systemMetrics.cpu_percent}%</span>
-                  </div>
-                  <Progress value={systemMetrics.cpu_percent} className="h-1" />
-                </div>
-
-                <div className="relative">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-mono text-zinc-300">MEMORY</span>
-                    <span className="text-xs font-mono text-cyan-500">{systemMetrics.memory_percent}%</span>
-                  </div>
-                  <Progress value={systemMetrics.memory_percent} className="h-1" />
-                  <div className="text-[10px] font-mono text-zinc-500 mt-1">
-                    {formatBytes(systemMetrics.memory_used || 0)} / {formatBytes(systemMetrics.memory_total || 0)}
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-mono text-zinc-300">DISK USAGE</span>
-                    <span className="text-xs font-mono text-cyan-500">{systemMetrics.disk_usage}%</span>
-                  </div>
-                  <Progress value={systemMetrics.disk_usage} className="h-1" />
-                  <div className="text-[10px] font-mono text-zinc-500 mt-1">
-                    {formatBytes(systemMetrics.disk_used || 0)} / {formatBytes(systemMetrics.disk_total || 0)}
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-mono text-zinc-300">NETWORK I/O</span>
-                    <span className="text-xs font-mono text-cyan-500">
-                      ↑{formatBytes(systemMetrics.network_bytes_sent)}/s
-                    </span>
-                  </div>
-                  <Progress value={75} className="h-1" />
-                  <div className="text-[10px] font-mono text-zinc-500 mt-1">
-                    ↓{formatBytes(systemMetrics.network_bytes_recv)}/s
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Center Column - Main Display */}
-        <div className="col-span-6 space-y-6">
-          {battleLogs.some(log => log.severity === 'critical') && (
-            <Alert className="bg-red-950/30 border-red-900/50 text-red-200">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
-              <AlertDescription className="text-xs font-mono ml-2">
-                CRITICAL: ACTIVE THREATS DETECTED - DEFENSE PROTOCOLS ENGAGED
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Threat Analysis */}
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-mono text-zinc-400">THREAT ANALYSIS</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-zinc-800 p-4 rounded-lg">
-                    <div className="text-2xl font-mono text-cyan-500 mb-1">
-                      {battleLogs.filter(log => log.severity === 'warning' || log.severity === 'alert').length}
-                    </div>
-                    <div className="text-xs font-mono text-zinc-400">ATTACKS DETECTED</div>
-                  </div>
-                  <div className="bg-zinc-800 p-4 rounded-lg">
-                    <div className="text-2xl font-mono text-emerald-500 mb-1">
-                      {battleLogs.filter(log => log.severity === 'info').length}
-                    </div>
-                    <div className="text-xs font-mono text-zinc-400">THREATS NEUTRALIZED</div>
-                  </div>
-                  <div className="bg-zinc-800 p-4 rounded-lg">
-                    <div className="text-2xl font-mono text-red-500 mb-1">
-                      {battleLogs.filter(log => log.severity === 'critical').length}
-                    </div>
-                    <div className="text-xs font-mono text-zinc-400">ACTIVE BREACHES</div>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">MAIN SENSOR</span>
+                  <span className="text-xs font-mono text-emerald-500">ACTIVE</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">DEFENSE GRID</span>
+                  <span className="text-xs font-mono text-emerald-500">ONLINE</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">COMMAND LINK</span>
+                  <span className="text-xs font-mono text-emerald-500">CONNECTED</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Code Viewer */}
-          <CodeViewer defenseActions={defenseActions} />
-        </div>
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-cyan-500" />
+                DEFENSE STATUS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">FIREWALL</span>
+                  <span className="text-xs font-mono text-emerald-500">ACTIVE</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">IDS/IPS</span>
+                  <span className="text-xs font-mono text-emerald-500">MONITORING</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">ENCRYPTION</span>
+                  <span className="text-xs font-mono text-emerald-500">ENABLED</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-mono text-zinc-300">BACKUP</span>
+                  <span className="text-xs font-mono text-yellow-500">SCHEDULED</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Right Column - Battle Log */}
-        <div className="col-span-3">
+          {/* Battle Logs Card */}
           <Card className="bg-zinc-900 border-zinc-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
                 <Terminal className="h-4 w-4 text-cyan-500" />
-                BATTLE LOG
+                BATTLE LOG {battleLogs.length > 0 && `(${battleLogs.length})`}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-[800px] overflow-y-auto">
-                {battleLogs.map((log, i) => (
-                  <div key={i} className="flex items-start gap-2 pb-2 border-b border-zinc-800">
-                    <ChevronRight className={`h-4 w-4 ${
-                      log.severity === 'critical' ? 'text-red-500' :
-                      log.severity === 'alert' ? 'text-amber-500' :
-                      log.severity === 'warning' ? 'text-yellow-500' :
-                      'text-cyan-500'
-                    }`} />
-                    <div>
-                    <div className="text-xs font-mono text-zinc-300">
-                        {log.message}
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-500">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                {renderBattleLogs()}
               </div>
             </CardContent>
           </Card>
 
-          {/* Additional Status Cards */}
-          <div className="mt-6">
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-cyan-500" />
-                  DEFENSE STATUS
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-mono text-zinc-300">FIREWALL</span>
-                    <span className="text-xs font-mono text-emerald-500">ACTIVE</span>
+          {/* Active Connections Card */}
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
+                <Network className="h-4 w-4 text-cyan-500" />
+                ACTIVE CONNECTIONS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="text-2xl font-mono text-cyan-500">
+                  {connectionStatus === 'connected' ? 'ONLINE' : 'OFFLINE'}
+                </div>
+                <div className="text-xs font-mono text-zinc-400">
+                  Last Updated: {currentTime}
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className="text-xs font-mono text-zinc-300">Main Sensor Array</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-mono text-zinc-300">IDS/IPS</span>
-                    <span className="text-xs font-mono text-emerald-500">MONITORING</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className="text-xs font-mono text-zinc-300">Defense Grid</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-mono text-zinc-300">ENCRYPTION</span>
-                    <span className="text-xs font-mono text-emerald-500">ENABLED</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-mono text-zinc-300">BACKUP</span>
-                    <span className="text-xs font-mono text-yellow-500">SCHEDULED</span>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${connectionStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className="text-xs font-mono text-zinc-300">Command Link</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Active Connections */}
-          <div className="mt-6">
-            <Card className="bg-zinc-900 border-zinc-800">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-mono text-zinc-400 flex items-center gap-2">
-                  <Network className="h-4 w-4 text-cyan-500" />
-                  ACTIVE CONNECTIONS
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="text-2xl font-mono text-cyan-500">
-                    {connectionStatus === 'connected' ? 'ONLINE' : 'OFFLINE'}
-                  </div>
-                  <div className="text-xs font-mono text-zinc-400">
-                    Last Updated: {new Date().toLocaleTimeString()}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-emerald-500 rounded-full" />
-                      <span className="text-xs font-mono text-zinc-300">Main Sensor Array</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-emerald-500 rounded-full" />
-                      <span className="text-xs font-mono text-zinc-300">Defense Grid</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-emerald-500 rounded-full" />
-                      <span className="text-xs font-mono text-zinc-300">Command Link</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+
+      {/* Critical Alert Banner */}
+      {battleLogs.some(log => log.severity === 'critical' || log.severity === 'alert') && (
+        <Alert className="bg-red-950/30 border-red-900/50 text-red-200 mt-6">
+          <AlertTriangle className="h-4 w-4 text-red-500" />
+          <AlertDescription className="text-xs font-mono ml-2">
+            CRITICAL: ACTIVE THREATS DETECTED - DEFENSE PROTOCOLS ENGAGED
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 };
